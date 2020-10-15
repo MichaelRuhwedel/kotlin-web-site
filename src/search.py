@@ -11,7 +11,34 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 from src.api import get_api_page
 
+dist_path = "./dist"
 root_folder = path.dirname(path.dirname(__file__))
+
+
+def get_pages(freezer):
+    frozen = freezer._generate_all_urls()
+
+    frozen_dict = dict()
+
+    for url, type in frozen:
+        frozen_dict[url] = type
+
+    paths = []
+
+    if os.path.isdir(dist_path):
+        for root, dirnames, filenames in os.walk(dist_path):
+            for filename in filenames:
+                prefix_path = root[len(dist_path):]
+                if not prefix_path: prefix_path = "/"
+
+                url = path.join(prefix_path, filename)
+
+                if filename == "index.html":
+                    paths.append((prefix_path, frozen_dict.get(prefix_path, None)))
+                else:
+                    paths.append((url, frozen_dict.get(url, None)))
+
+    return paths if len(paths) > 0 else frozen
 
 
 def initialize_analyticsreporting() -> Resource:
@@ -113,7 +140,7 @@ def get_valuable_content(page_path, content: Iterator[Tag]) -> List[str]:
     for child in content:
         if not isinstance(child, Tag):
             continue
-        if child.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'li', 'span', 'strong']:
+        if child.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'li', 'span', 'strong', 'aside']:
             valuable_content.append(child.text)
         elif child.name in ['ul', 'ol', 'blockquote', 'div', 'section']:
             valuable_content += get_valuable_content(page_path, child.children)
@@ -161,88 +188,148 @@ def get_markdown_page_index_objects(content: Tag, url: str, page_path: str, titl
     return index_objects
 
 
-def build_search_indices(site_structure, pages):
+def get_wh_index():
+    if 'WH_SEARCH_USER' in os.environ and 'WH_SEARCH_KEY' in os.environ:
+        client = algoliasearch.Client(os.environ['WH_SEARCH_USER'], os.environ['WH_SEARCH_KEY'])
+        index_name = os.environ['WH_INDEX_NAME'] if 'WH_INDEX_NAME' in os.environ else "dev_JETBRAINSCOM_HELP"
+        return Index(client, index_name)
+    return None
+
+
+def get_page_content(url):
+    path_file = dist_path + url
+
+    if path.exists(path_file):
+        with open(path_file, 'r', encoding="UTF-8") as file:
+            return file.read()
+
+    client = app.test_client()
+    content = client.get(url, follow_redirects=True)
+
+    if content.status_code != 200:
+        raise Exception('Bad response during indexing')
+
+    return content.data
+
+
+def to_wh_index(item):
+    return {
+        "objectID": item["objectID"],
+        "headings": item["headings"],
+        "mainTitle": "",
+        "pageTitle": item["headings"],
+        "content": item["content"],
+        "url": "https://kotlinlang.org" + item["url"],
+        "metaDescription": "",
+        "type": "Documentation",
+        "parent": item["url"],
+        "pageViews": item["pageViews"],
+        "product": "help/kotlin-reference",
+        "version": "1.4.10",
+        "breadcrumbs": None,
+    }
+
+
+def build_search_indices(pages):
     page_views_statistic = get_page_views_statistic()
+
     index_objects = []
+    wh_index_objects = []
 
     print("Start building index")
-    for url, endpoint in site_structure:
-        if (not url.endswith('.html')) and (not url.endswith('/')):
-            continue
-        print("Processing " + url)
+    for url, endpoint in pages:
+        if url.endswith('/'): url += 'index.html'
+        if not url.endswith('.html'): continue
+
+        title = ''
+        content = ''
+        page_type = 'Page'
+        page_path = get_page_path_from_url(url)
+
+        page_views = 0
+
         if url in page_views_statistic:
             page_views = page_views_statistic[url]
-        else:
-            page_views = 0
-        page_path = get_page_path_from_url(url)
-        if endpoint == 'page':
-            page_part = pages.get(page_path)
-            page_type = "Page"
-            if page_path.startswith('community'):
-                page_type = 'Community'
-            elif page_path.startswith('docs/reference'):
-                page_type = 'Reference'
-            elif page_path.startswith('docs/tutorials'):
-                page_type = 'Tutorial'
-            index_objects += get_markdown_page_index_objects(
-                page_part.parsed_html,
-                url,
-                page_path,
-                page_part.meta['title'],
-                page_type,
-                page_views
-            )
-        elif endpoint == "api_page":
-            page_info = get_api_page(True, page_path[4:])
+
+        if page_path.startswith('community'):
+            page_type = 'Community'
+        elif page_path.startswith('docs/reference'):
+            page_type = 'Reference'
+        elif page_path.startswith('docs/tutorials'):
+            page_type = 'Tutorial'
+
+        if page_path.startswith("api/latest/"):
+            page_type = "Standard Library" if "jvm/stdlib" in url else "Kotlin Test"
+            page_info = get_api_page(True, page_path[4:], dist_path)
+
+            title = page_info['title']
+
             for table in page_info['content']('table'):
                 table.extract()
+
             for overload_group in page_info['content'].findAll("div", {"class": "signature"}):
                 overload_group.extract()
+
             breadcrumbs = page_info['content'].find("div", {"class": "api-docs-breadcrumbs"})
-            full_name = page_info['title']
+
             if breadcrumbs is not None:
                 full_name_parts = list(map(lambda link: link.text, breadcrumbs.findAll("a")))
-                if "kotlin-stdlib" in full_name_parts:
-                    full_name_parts.remove("kotlin-stdlib")
-                else:
-                    full_name_parts.remove("kotlin.test")
-                full_name = " › ".join(full_name_parts).replace('<', '&lt;').replace('>', '&gt;')
-                breadcrumbs.extract()
-            type = "Standard Library" if "jvm/stdlib" in url else "Kotlin Test"
-            index_objects += get_page_index_objects(page_info['content'], url, page_path, full_name, type, page_views)
-        elif endpoint.endswith("_redirect"): continue
-        else:
-            client = app.test_client()
-            content = client.get(url, follow_redirects=True)
-            if content.status_code != 200:
-                raise Exception('Bad response during indexing')
-            parsed = BeautifulSoup(content.data, "html.parser")
-            title_node = parsed.find("title")
-            if not title_node: raise Exception('Url doesn\'t have title: {}\n{}'.format(url, content.data))
-            title = title_node.text
 
+                if "kotlin-stdlib" in full_name_parts: full_name_parts.remove("kotlin-stdlib")
+                else: full_name_parts.remove("kotlin.test")
+
+                title = " › ".join(full_name_parts).replace('<', '&lt;').replace('>', '&gt;')
+                breadcrumbs.extract()
+
+            content = page_info['content']
+        else:
+            html_content = get_page_content(url)
+            parsed = BeautifulSoup(html_content, "html.parser")
+
+            if parsed.find("meta", {"http-equiv": "refresh"}):
+                continue
+
+            if parsed.select("body[data-article-props]"):
+                page_type = "Documentation"
+
+            title_node = parsed.find("title")
+
+            if title_node: title = title_node.text
+
+            # Our default pages
             content = parsed.find("div", {"class": "page-content"})
+
+            # Our modern pages
             if content is None:
                 content = parsed.find("article", {"class": "page-content"})
 
+            # WebHelp pages
             if content is None:
-                index_objects.append({
-                    'objectID': page_path,
-                    'type': 'Page',
-                    'headings': title,
-                    'url': url,
-                    'content': '',
-                    'pageViews': page_views
-                })
-            else:
-                index_objects += get_page_index_objects(
-                    content,
-                    url,
-                    page_path,
-                    title,
-                    "Page",
-                    page_views
-                )
+                content = parsed.find("article", {"class": "article"})
+
+        if title and content:
+            print("processing " + url + ' - ' + page_type)
+
+            page_indices = get_page_index_objects(
+                content,
+                url,
+                page_path,
+                title,
+                page_type,
+                page_views
+            )
+
+            index_objects += page_indices
+            wh_index_objects += list(map(to_wh_index, page_indices))
+        else:
+            print('skip: ' + url + ' unknown page content in with title: ' + title)
+
+    wh_index = get_wh_index()
+
+    if wh_index:
+        print("Submitting WH index objects to " + wh_index.index_name + " index")
+        wh_index.add_objects(wh_index_objects)
+
     print("Index objects successfully built")
 
     index = get_index()
