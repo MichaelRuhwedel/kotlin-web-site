@@ -216,7 +216,7 @@ def to_wh_index(item):
     return {
         "objectID": item["objectID"],
         "headings": item["headings"],
-        "mainTitle": "",
+        "mainTitle": item["headings"],
         "pageTitle": item["headings"],
         "content": item["content"],
         "url": "https://kotlinlang.org" + item["url"],
