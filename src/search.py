@@ -259,7 +259,7 @@ def build_search_indices(pages):
             page_type = 'Tutorial'
 
         if page_path.startswith("api/latest/"):
-            page_info = get_api_page(True, page_path[4:])
+            page_info = get_api_page(True, page_path[4:], dist_path)
 
             for table in page_info['content']('table'):
                 table.extract()
