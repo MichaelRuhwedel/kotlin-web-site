@@ -259,10 +259,7 @@ def build_search_indices(pages):
             page_type = 'Tutorial'
 
         if page_path.startswith("api/latest/"):
-            page_type = "Standard Library" if "jvm/stdlib" in url else "Kotlin Test"
-            page_info = get_api_page(True, page_path[4:], dist_path)
-
-            title = page_info['title']
+            page_info = get_api_page(True, page_path[4:])
 
             for table in page_info['content']('table'):
                 table.extract()
@@ -272,14 +269,20 @@ def build_search_indices(pages):
 
             breadcrumbs = page_info['content'].find("div", {"class": "api-docs-breadcrumbs"})
 
+            title = page_info['title']
+
             if breadcrumbs is not None:
                 full_name_parts = list(map(lambda link: link.text, breadcrumbs.findAll("a")))
 
-                if "kotlin-stdlib" in full_name_parts: full_name_parts.remove("kotlin-stdlib")
-                else: full_name_parts.remove("kotlin.test")
+                if "kotlin-stdlib" in full_name_parts:
+                    full_name_parts.remove("kotlin-stdlib")
+                else:
+                    full_name_parts.remove("kotlin.test")
 
                 title = " › ".join(full_name_parts).replace('<', '&lt;').replace('>', '&gt;')
                 breadcrumbs.extract()
+
+            page_type = "Standard Library" if "jvm/stdlib" in url else "Kotlin Test"
 
             content = page_info['content']
         else:
