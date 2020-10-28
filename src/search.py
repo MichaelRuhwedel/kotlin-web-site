@@ -284,7 +284,7 @@ def build_search_indices(pages):
 
             page_type = "Standard Library" if "jvm/stdlib" in url else "Kotlin Test"
 
-            content = page_info['content']
+            content = page_info['content'].find('article', {"role": "main"})
         else:
             html_content = get_page_content(url)
             parsed = BeautifulSoup(html_content, "html.parser")
