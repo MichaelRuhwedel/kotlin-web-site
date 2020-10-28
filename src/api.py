@@ -22,7 +22,7 @@ def process_titles(row_titles, title_prefix, path_folder, suffix):
         process_titles(child_titles, title_prefix, path_folder, suffix)
 
 
-def load_api_titles(folder_path=root_folder):
+def load_api_titles(folder_path):
     api_title_files_path = path.join(folder_path, 'api', 'latest', 'jvm', 'stdlib', 'index.yml')
     with open(api_title_files_path) as title_files:
         process_titles(yaml.load(title_files)[0], 'latest/jvm/stdlib', '.', '')
@@ -32,7 +32,7 @@ def load_api_titles(folder_path=root_folder):
         process_titles(yaml.load(title_files)[0], 'latest/kotlin.test',  '.', '')
 
 
-def get_api_page(build_mode: bool, page_path, dir_path=None):
+def get_api_page(build_mode: bool, page_path, dir_path=root_folder):
     if not page_path.endswith('.html'):
         page_path += '.html'
     if len(titles) == 0:
