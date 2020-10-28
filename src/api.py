@@ -44,7 +44,7 @@ def get_api_page(build_mode: bool, page_path, dir_path=root_folder):
             else:
                 print("API module is not included: ", e)
 
-    file_path = path.join(root_folder, 'api', page_path)
+    file_path = path.join(dir_path, 'api', page_path)
     if not path.exists(file_path):
         return None
     with open(file_path) as html_file:
