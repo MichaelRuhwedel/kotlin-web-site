@@ -231,7 +231,7 @@ def to_wh_index(item):
 
 
 def build_search_indices(pages):
-    page_views_statistic = [] #get_page_views_statistic()
+    page_views_statistic = get_page_views_statistic()
 
     index_objects = []
     wh_index_objects = []
