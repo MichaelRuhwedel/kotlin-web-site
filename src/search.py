@@ -213,11 +213,13 @@ def get_page_content(url):
 
 
 def to_wh_index(item):
+    page_title = item["pageTitle"] if "pageTitle" in item else item["headings"]
+
     return {
         "objectID": item["objectID"],
         "headings": item["headings"],
-        "mainTitle": item["headings"],
-        "pageTitle": item["headings"],
+        "mainTitle": page_title,
+        "pageTitle": page_title,
         "content": item["content"],
         "url": "https://kotlinlang.org" + item["url"],
         "metaDescription": "",
@@ -231,7 +233,7 @@ def to_wh_index(item):
 
 
 def build_search_indices(pages):
-    page_views_statistic = get_page_views_statistic()
+    page_views_statistic = [] #get_page_views_statistic()
 
     index_objects = []
     wh_index_objects = []
@@ -245,8 +247,8 @@ def build_search_indices(pages):
         content = ''
         page_type = 'Page'
         page_path = get_page_path_from_url(url)
-
         page_views = 0
+        page_index_parser = get_markdown_page_index_objects
 
         if url in page_views_statistic:
             page_views = page_views_statistic[url]
@@ -283,8 +285,8 @@ def build_search_indices(pages):
                 breadcrumbs.extract()
 
             page_type = "Standard Library" if "jvm/stdlib" in url else "Kotlin Test"
-
             content = page_info['content'].find('article', {"role": "main"})
+            page_index_parser = get_page_index_objects
         else:
             html_content = get_page_content(url)
             parsed = BeautifulSoup(html_content, "html.parser")
@@ -295,9 +297,10 @@ def build_search_indices(pages):
             if parsed.select("body[data-article-props]"):
                 page_type = "Documentation"
 
-            title_node = parsed.find("title")
-
-            if title_node: title = title_node.text
+            if not title:
+                title_node = parsed.find("title")
+                if title_node:
+                    title = title_node.text
 
             # Our default pages
             content = parsed.find("div", {"class": "page-content"})
@@ -313,7 +316,7 @@ def build_search_indices(pages):
         if title and content:
             print("processing " + url + ' - ' + page_type)
 
-            page_indices = get_page_index_objects(
+            page_indices = page_index_parser(
                 content,
                 url,
                 page_path,
