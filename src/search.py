@@ -248,7 +248,6 @@ def build_search_indices(pages):
         page_type = 'Page'
         page_path = get_page_path_from_url(url)
         page_views = 0
-        page_index_parser = get_markdown_page_index_objects
 
         if url in page_views_statistic:
             page_views = page_views_statistic[url]
@@ -286,7 +285,6 @@ def build_search_indices(pages):
 
             page_type = "Standard Library" if "jvm/stdlib" in url else "Kotlin Test"
             content = page_info['content'].find('article', {"role": "main"})
-            page_index_parser = get_page_index_objects
         else:
             html_content = get_page_content(url)
             parsed = BeautifulSoup(html_content, "html.parser")
@@ -315,6 +313,8 @@ def build_search_indices(pages):
 
         if title and content:
             print("processing " + url + ' - ' + page_type)
+
+            page_index_parser = get_markdown_page_index_objects if page_type == "page_type" else get_page_index_objects
 
             page_indices = page_index_parser(
                 content,
