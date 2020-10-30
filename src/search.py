@@ -173,9 +173,6 @@ def get_markdown_page_index_objects(content: Tag, url: str, page_path: str, titl
     content = []
     url_with_href = ""
     for child in children:
-        if 'h1' == child.name:
-            title = child.text
-
         if child.name in headers:
             if block_title != '':
                 for ind, page_part in enumerate(get_valuable_content(page_path, content)):
@@ -322,8 +319,10 @@ def build_search_indices(pages):
             if parsed.find("meta", {"http-equiv": "refresh"}):
                 continue
 
-            if parsed.select("body[data-article-props]"):
-                page_type = "Documentation"
+            body_title = parsed.select_one("body[data-search-title]")
+
+            if body_title:
+                title = body_title.attrs["data-search-title"]
 
             if not title:
                 title_node = parsed.find("title")
@@ -346,8 +345,11 @@ def build_search_indices(pages):
 
             page_indexer = get_page_index_objects
 
-            if page_type == "Page": page_indexer = get_markdown_page_index_objects
-            elif page_type == "Documentation": page_indexer = get_webhelp_page_index_objects
+            if page_type == "Page":
+                page_indexer = get_markdown_page_index_objects
+            elif parsed.select_one("body[data-article-props]"):
+                page_type = "Documentation"
+                page_indexer = get_webhelp_page_index_objects
 
             page_indices = page_indexer(
                 content,
