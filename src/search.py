@@ -199,18 +199,19 @@ def get_webhelp_page_index_objects(content: Tag, url: str, page_path: str, title
         chapters = content.select('.chapter')
 
         for chapter in chapters:
-            chapter_title_node = chapter.select_one('h2[data-toc]').extract()
-            chapter_title = chapter_title_node.text
-            chapter_title_anchor = chapter_title_node.attrs["data-toc"].split('#')[1]
-            chapter_content = chapter.extract()
+            chapter_title_node = chapter.select_one('h2[data-toc]')
+            if chapter_title_node:
+                chapter_title = chapter_title_node.extract().text
+                chapter_title_anchor = chapter_title_node.attrs["data-toc"].split('#')[1]
+                chapter_content = chapter.extract()
 
-            url_with_href = url + "#" + chapter_title_anchor
+                url_with_href = url + "#" + chapter_title_anchor
 
-            for ind, page_part in enumerate(get_valuable_content(page_path, chapter_content)):
-                page_info = {'url': url_with_href, 'objectID': url_with_href + str(ind), 'content': page_part,
-                             'headings': chapter_title, 'pageTitle': article_title, 'type': page_type,
-                             'pageViews': page_views}
-                index_objects.append(page_info)
+                for ind, page_part in enumerate(get_valuable_content(page_path, chapter_content)):
+                    page_info = {'url': url_with_href, 'objectID': url_with_href + str(ind), 'content': page_part,
+                                 'headings': chapter_title, 'pageTitle': article_title, 'type': page_type,
+                                 'pageViews': page_views}
+                    index_objects.append(page_info)
 
     return index_objects
 
@@ -262,7 +263,7 @@ def to_wh_index(item):
 
 
 def build_search_indices(pages):
-    page_views_statistic = get_page_views_statistic()
+    page_views_statistic = [] #get_page_views_statistic()
     index_objects = []
     wh_index_objects = []
 
