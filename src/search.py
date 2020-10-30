@@ -173,6 +173,9 @@ def get_markdown_page_index_objects(content: Tag, url: str, page_path: str, titl
     content = []
     url_with_href = ""
     for child in children:
+        if 'h1' == child.name:
+            title = child.text
+
         if child.name in headers:
             if block_title != '':
                 for ind, page_part in enumerate(get_valuable_content(page_path, content)):
@@ -185,6 +188,34 @@ def get_markdown_page_index_objects(content: Tag, url: str, page_path: str, titl
             content = []
         else:
             content.append(child)
+    return index_objects
+
+def get_webhelp_page_index_objects(content: Tag, url: str, page_path: str, title: str, page_type: str,
+                                    page_views: int) -> List[Dict]:
+    index_objects = []
+
+    article_title = content.select_one('h1').text
+
+    if article_title:
+        chapters = content.select('.chapter')
+
+        for chapter in chapters:
+            chapter_title_node = chapter.select_one('[data-toc]').extract()
+            chapter_title = chapter_title_node.text
+            chapter_title_anchor = chapter_title_node.attrs["data-toc"].split('#')[1]
+            chapter_content = chapter.extract()
+
+            url_with_href = url + "#" + chapter_title_anchor
+            block_title = article_title + ': ' + chapter_title
+
+            for ind, page_part in enumerate(get_valuable_content(page_path, content)):
+                page_info = {'url': url_with_href, 'objectID': url_with_href + str(ind), 'content': chapter_content,
+                             'headings': block_title, 'pageTitle': title, 'type': page_type,
+                             'pageViews': page_views}
+                index_objects.append(page_info)
+    else:
+        pass
+
     return index_objects
 
 
@@ -314,9 +345,12 @@ def build_search_indices(pages):
         if title and content:
             print("processing " + url + ' - ' + page_type)
 
-            page_index_parser = get_markdown_page_index_objects if page_type == "page_type" else get_page_index_objects
+            page_indexer = get_page_index_objects
 
-            page_indices = page_index_parser(
+            if page_type == "Page": page_indexer = get_markdown_page_index_objects
+            elif page_type == "Documentation": page_indexer = get_webhelp_page_index_objects
+
+            page_indices = page_indexer(
                 content,
                 url,
                 page_path,
