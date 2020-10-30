@@ -117,9 +117,10 @@ def get_page_path_from_url(url):
 
 
 def group_small_content_pats(content_parts, start_index=0):
+    record_limit = 100 * 1024
     size = len(content_parts)
     for i in range(start_index, size):
-        if len(content_parts[i]) < 40 and i < size - 1:
+        if len(content_parts[i]) < record_limit and i < size - 1:
             content_parts[i] = content_parts[i].rstrip()
             if not len(content_parts[i]) == 0 and not content_parts[i].endswith("."):
                 content_parts[i] = content_parts[i] + ". "
@@ -127,7 +128,7 @@ def group_small_content_pats(content_parts, start_index=0):
             del content_parts[i + 1]
             group_small_content_pats(content_parts, i)
             return
-    if size > 1 and len(content_parts[size - 1]) < 40:
+    if size > 1 and len(content_parts[size - 1]) < record_limit:
         content_parts[size - 2] = content_parts[size - 2].rstrip()
         if not len(content_parts[size - 2]) == 0 and not content_parts[size - 2].endswith("."):
             content_parts[size - 2] = content_parts[size - 2] + ". "
@@ -204,15 +205,12 @@ def get_webhelp_page_index_objects(content: Tag, url: str, page_path: str, title
             chapter_content = chapter.extract()
 
             url_with_href = url + "#" + chapter_title_anchor
-            block_title = article_title + ': ' + chapter_title
 
-            for ind, page_part in enumerate(get_valuable_content(page_path, content)):
+            for ind, page_part in enumerate(get_valuable_content(page_path, chapter_content)):
                 page_info = {'url': url_with_href, 'objectID': url_with_href + str(ind), 'content': page_part,
-                             'headings': block_title, 'pageTitle': title, 'type': page_type,
+                             'headings': chapter_title, 'pageTitle': article_title, 'type': page_type,
                              'pageViews': page_views}
                 index_objects.append(page_info)
-    else:
-        pass
 
     return index_objects
 
@@ -242,13 +240,9 @@ def get_page_content(url):
 
 
 def to_wh_index(item):
-    page_title = item["pageTitle"] if "pageTitle" in item else item["headings"]
-
-    return {
+    wh_index = {
         "objectID": item["objectID"],
         "headings": item["headings"],
-        "mainTitle": page_title,
-        "pageTitle": page_title,
         "content": item["content"],
         "url": "https://kotlinlang.org" + item["url"],
         "metaDescription": "",
@@ -259,6 +253,12 @@ def to_wh_index(item):
         "version": "1.4.10",
         "breadcrumbs": None,
     }
+
+    if "pageTitle" in item:
+        item["mainTitle"] = item["pageTitle"]
+        item["pageTitle"] = item["pageTitle"]
+
+    return wh_index
 
 
 def build_search_indices(pages):
@@ -362,7 +362,7 @@ def build_search_indices(pages):
             )
 
             index_objects += page_indices
-            wh_index_objects += list(map(to_wh_index, page_indices))
+            wh_index_objects += list(map(to_wh_index, page_indices.copy()))
         else:
             print('skip: ' + url + ' unknown page content in with title: ' + title)
 
