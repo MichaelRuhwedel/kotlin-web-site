@@ -199,7 +199,7 @@ def get_webhelp_page_index_objects(content: Tag, url: str, page_path: str, title
         chapters = content.select('.chapter')
 
         for chapter in chapters:
-            chapter_title_node = chapter.select_one('[data-toc]').extract()
+            chapter_title_node = chapter.select_one('h2[data-toc]').extract()
             chapter_title = chapter_title_node.text
             chapter_title_anchor = chapter_title_node.attrs["data-toc"].split('#')[1]
             chapter_content = chapter.extract()
@@ -240,9 +240,13 @@ def get_page_content(url):
 
 
 def to_wh_index(item):
+    page_title = item["pageTitle"] if "pageTitle" in item else item["headings"]
+
     wh_index = {
         "objectID": item["objectID"],
         "headings": item["headings"],
+        "mainTitle": page_title,
+        "pageTitle": page_title,
         "content": item["content"],
         "url": "https://kotlinlang.org" + item["url"],
         "metaDescription": "",
@@ -253,10 +257,6 @@ def to_wh_index(item):
         "version": "1.4.10",
         "breadcrumbs": None,
     }
-
-    if "pageTitle" in item:
-        item["mainTitle"] = item["pageTitle"]
-        item["pageTitle"] = item["pageTitle"]
 
     return wh_index
 
