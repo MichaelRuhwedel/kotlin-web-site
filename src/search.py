@@ -187,6 +187,7 @@ def get_markdown_page_index_objects(content: Tag, url: str, page_path: str, titl
             content.append(child)
     return index_objects
 
+
 def get_webhelp_page_index_objects(content: Tag, url: str, page_path: str, title: str, page_type: str,
                                     page_views: int) -> List[Dict]:
     index_objects = []
@@ -206,7 +207,7 @@ def get_webhelp_page_index_objects(content: Tag, url: str, page_path: str, title
             block_title = article_title + ': ' + chapter_title
 
             for ind, page_part in enumerate(get_valuable_content(page_path, content)):
-                page_info = {'url': url_with_href, 'objectID': url_with_href + str(ind), 'content': chapter_content,
+                page_info = {'url': url_with_href, 'objectID': url_with_href + str(ind), 'content': page_part,
                              'headings': block_title, 'pageTitle': title, 'type': page_type,
                              'pageViews': page_views}
                 index_objects.append(page_info)
