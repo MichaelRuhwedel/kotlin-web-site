@@ -261,7 +261,7 @@ def to_wh_index(item):
 
 
 def build_search_indices(pages):
-    page_views_statistic = get_page_views_statistic()
+    page_views_statistic = [] #get_page_views_statistic()
     index_objects = []
     wh_index_objects = []
 
@@ -341,15 +341,15 @@ def build_search_indices(pages):
                 content = parsed.find("article", {"class": "article"})
 
         if title and content:
-            print("processing " + url + ' - ' + page_type)
-
             page_indexer = get_page_index_objects
 
-            if page_type == "Page":
-                page_indexer = get_markdown_page_index_objects
-            elif parsed.select_one("body[data-article-props]"):
+            if parsed.select_one("body[data-article-props]"):
                 page_type = "Documentation"
                 page_indexer = get_webhelp_page_index_objects
+            elif page_type == "Page":
+                page_indexer = get_markdown_page_index_objects
+
+            print("processing " + url + ' - ' + page_type)
 
             page_indices = page_indexer(
                 content,
